@@ -88,7 +88,7 @@ export function SessionCard({ session }: Props) {
   }
 
   return (
-    <article className="card overflow-hidden">
+    <article className="card min-w-0 overflow-hidden">
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
@@ -106,6 +106,12 @@ export function SessionCard({ session }: Props) {
             {ui.label}
           </span>
         </div>
+
+        {session.description ? (
+          <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-[var(--text-muted)]">
+            {session.description}
+          </p>
+        ) : null}
 
         {session.stateDetail ? (
           <p className="mt-2 text-[13px] leading-snug text-[var(--text-muted)]">

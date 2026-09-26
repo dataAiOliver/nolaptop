@@ -73,7 +73,11 @@ There are several good tmux-and-Claude dashboards. The difference here is what h
   on a terminal prompt, the dashboard says so and offers the action.
 - **Reconnect without losing the conversation** — a dropped Remote Control is restored
   with `/remote-control`; a stopped session comes back with `--resume`.
-- **Open in VS Code** — tunnel, code-server, or a desktop deep link.
+- **Per-project notes, ports and links** — plus a copy-paste `ssh -L` command,
+  for bash and PowerShell, that makes those ports local when you sit down at a
+  laptop.
+- **Open in VS Code** — an optional one-time setup per server turns on
+  Microsoft's tunnel, and every session then opens at vscode.dev.
 - **Usage** — token counts read from Claude Code's own transcript. Nothing estimated.
 
 ## Install
@@ -177,6 +181,36 @@ password on an open VPS port is how these stories usually end.
 
 Credentials land in the project's `.env` and are described in its `AGENTS.md`, so the
 agent finds them without being told.
+
+### VS Code in the browser
+
+Also off by default, and on the same card. Nothing to buy, but three things have to
+exist on the server, so NoLaptop walks you through them and shows the output of each:
+
+1. the VS Code CLI (downloaded if the host has none),
+2. a one-time sign-in with GitHub or Microsoft — NoLaptop shows the device code and
+   the link, and never sees your credentials,
+3. a tunnel process, kept in its own tmux session.
+
+After that, every session card on that host gets an **Open in VS Code** button that
+opens the project at `vscode.dev`. The server only makes outbound connections; nothing
+is exposed. If you would rather run code-server, or open the desktop app over
+Remote-SSH, both are options in the server settings.
+
+## Working from a laptop
+
+Ports on a server's localhost are not reachable from your machine — which is the point,
+but inconvenient when you actually sit down at a laptop. Each project's page therefore
+shows the exact command:
+
+```bash
+ssh -N -L 3101:127.0.0.1:3101 -L 5433:127.0.0.1:5433 -L 8333:127.0.0.1:8333 you@server
+```
+
+It covers the project's dev port, any port you saved on it, and its own database and
+bucket — so a local `psql` or S3 client reaches them too. There is a Windows variant
+next to it, and a background variant for both. Windows 10 and 11 ship the `ssh` client,
+so it is the same command.
 
 ### Why SeaweedFS and not MinIO
 

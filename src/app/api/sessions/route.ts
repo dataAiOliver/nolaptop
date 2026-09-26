@@ -16,7 +16,11 @@ export async function GET() {
     await requireAuth();
     startMonitor();
     const sessions = await prisma.session.findMany({
-      include: { server: true, allocations: { include: { resource: true } } },
+      include: {
+        server: true,
+        allocations: { include: { resource: true } },
+        links: { orderBy: { createdAt: "asc" } },
+      },
       orderBy: { createdAt: "desc" },
     });
     return ok({ sessions: sessions.map(toSessionDto) });
@@ -53,7 +57,11 @@ export async function POST(request: NextRequest) {
 
     const full = await prisma.session.findUnique({
       where: { id: session.id },
-      include: { server: true, allocations: { include: { resource: true } } },
+      include: {
+        server: true,
+        allocations: { include: { resource: true } },
+        links: { orderBy: { createdAt: "asc" } },
+      },
     });
     return ok({ session: full ? toSessionDto(full) : null, projectName });
   } catch (err) {

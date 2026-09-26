@@ -86,7 +86,7 @@ function ResourceCard({ resource, onChange }: { resource: PublicResource; onChan
     resource.status === "ONLINE" ? "pill-ok" : resource.status === "ERROR" ? "pill-bad" : "pill-idle";
 
   return (
-    <article className="card p-4">
+    <article className="card min-w-0 p-4">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[17px] font-semibold leading-tight">{resource.name}</h2>

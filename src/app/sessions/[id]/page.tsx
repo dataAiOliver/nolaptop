@@ -18,6 +18,7 @@ import {
 import { callAction, Spinner, VsCodeIcon, type ActionName } from "@/components/SessionCard";
 import { useLive } from "@/components/LiveProvider";
 import { SessionResources } from "@/components/SessionResources";
+import { SessionLinks } from "@/components/SessionLinks";
 
 type DetailResponse = {
   session: SessionDto;
@@ -276,6 +277,13 @@ export default function SessionDetailPage() {
           {session.gitCommit ? <Fact label="Last commit" value={session.gitCommit} mono wide /> : null}
         </dl>
       </section>
+
+      <SessionLinks
+        session={session}
+        onChange={async () => {
+          await Promise.all([load(false), refresh()]);
+        }}
+      />
 
       <SessionResources sessionId={session.id} />
 

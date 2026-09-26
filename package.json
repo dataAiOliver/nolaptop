@@ -9,7 +9,9 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "typecheck": "tsc --noEmit",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "predev": "node scripts/setup.mjs --quiet",
+    "prestart": "node scripts/setup.mjs --quiet"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",

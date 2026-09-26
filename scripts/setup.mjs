@@ -16,6 +16,10 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = path.join(root, ".env");
 
+// `--quiet` is used by the pre-start hook: say nothing unless something was
+// actually generated, so a normal start is not noisy.
+const quiet = process.argv.includes("--quiet");
+
 const DEFAULTS = {
   DATABASE_URL: "file:./data/nolaptop.db",
   NL_ENCRYPTION_KEY: () => crypto.randomBytes(48).toString("base64"),
@@ -64,16 +68,26 @@ const lines = [
   "",
 ];
 
+if (quiet && generated.length === 0) {
+  // Nothing to do and nothing to say.
+  process.exit(0);
+}
+
 fs.writeFileSync(envPath, lines.join("\n"), { mode: 0o600 });
 fs.chmodSync(envPath, 0o600);
 
-console.log(`Wrote ${path.relative(process.cwd(), envPath)} (mode 600).`);
 if (generated.includes("NL_APP_PASSWORD")) {
   console.log("");
-  console.log("  Your NoLaptop password:");
-  console.log(`      ${values.get("NL_APP_PASSWORD")}`);
+  console.log("  ┌─────────────────────────────────────────────┐");
+  console.log("  │  NoLaptop password — shown once             │");
+  console.log("  ├─────────────────────────────────────────────┤");
+  console.log(`  │  ${values.get("NL_APP_PASSWORD").padEnd(43)}│`);
+  console.log("  └─────────────────────────────────────────────┘");
   console.log("");
-  console.log("  Write it down — it is only shown here, and it is in .env.");
-} else {
-  console.log("Existing secrets were kept.");
+  console.log(`  It is also in ${path.relative(process.cwd(), envPath)}, which is git-ignored.`);
+  console.log("");
+} else if (!quiet) {
+  console.log(`Wrote ${path.relative(process.cwd(), envPath)} (mode 600). Existing secrets were kept.`);
+} else if (generated.length > 0) {
+  console.log(`Generated ${generated.join(", ")} into ${path.relative(process.cwd(), envPath)}.`);
 }

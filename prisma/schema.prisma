@@ -83,6 +83,9 @@ model Session {
   claudeSessionId String?
   claudePid       Int?
 
+  /// Your own note about what this project is. Informational only.
+  description String?
+
   /// Port reserved for this project's dev server, unique per host.
   devPort   Int?
   /// Starter template this project was created from — see lib/templates.ts
@@ -106,12 +109,33 @@ model Session {
 
   events      SessionEvent[]
   allocations ResourceAllocation[]
+  links       SessionLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([serverId, projectName])
   @@index([state])
+}
+
+/// A port or URL worth remembering for a project — an admin panel, a second
+/// service, a deployed preview. Informational, and used to build the local
+/// port-forwarding command.
+model SessionLink {
+  id        String  @id @default(cuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  label String
+  /// A port on the server. Included in the port-forwarding command.
+  port  Int?
+  /// A full URL instead, for anything not reachable by forwarding a port.
+  url   String?
+  note  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
 }
 
 model SessionEvent {

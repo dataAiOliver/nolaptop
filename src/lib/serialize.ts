@@ -1,10 +1,11 @@
-import type { Resource, ResourceAllocation, Server, Session } from "@prisma/client";
+import type { Resource, ResourceAllocation, Server, Session, SessionLink } from "@prisma/client";
 import { asSessionState, type SessionState } from "./claude/state";
 import { ClaudeAdapter } from "./claude/adapter";
 import { parseUsage } from "./sessions";
 import type { UsageSnapshot } from "./remote/ops";
 import { toAllocationView, type AllocationView } from "./resources";
 import { editorLinkFor, type EditorLink } from "./editor";
+import { buildForwardPlan, type ForwardPlan } from "./forward";
 
 export type SessionDto = {
   id: string;
@@ -32,6 +33,12 @@ export type SessionDto = {
   editor: EditorLink;
   template: string;
   devPort: number | null;
+  /** Your own note about the project. */
+  description: string | null;
+  /** Ports and URLs you saved for this project. */
+  links: { id: string; label: string; port: number | null; url: string | null; note: string | null }[];
+  /** The ssh command that makes those ports local, for bash and PowerShell. */
+  forward: ForwardPlan;
   /** The template's app: NONE | STARTING | RUNNING | FAILED */
   appState: string;
   appDetail: string | null;
@@ -43,6 +50,7 @@ export type SessionDto = {
 type SessionWithRelations = Session & {
   server: Server;
   allocations?: (ResourceAllocation & { resource: Resource })[];
+  links?: SessionLink[];
 };
 
 export function toSessionDto(session: SessionWithRelations): SessionDto {
@@ -78,6 +86,15 @@ export function toSessionDto(session: SessionWithRelations): SessionDto {
     resources: (session.allocations ?? []).map((a) => toAllocationView(a)),
     template: session.template,
     devPort: session.devPort,
+    description: session.description,
+    links: (session.links ?? []).map((l) => ({
+      id: l.id,
+      label: l.label,
+      port: l.port,
+      url: l.url,
+      note: l.note,
+    })),
+    forward: buildForwardPlan(session),
     appState: session.appState,
     appDetail: session.appDetail,
     appUrl:

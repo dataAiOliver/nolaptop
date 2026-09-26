@@ -8,6 +8,7 @@ import { SERVER_STATUS_UI, type ServerStatus } from "@/lib/claude/state";
 import { formatRelative } from "@/lib/format";
 import type { PublicServer } from "@/lib/servers";
 import { ServerStack } from "@/components/ServerStack";
+import { ServerVsCode } from "@/components/ServerVsCode";
 
 export default function ServersPage() {
   const { servers, loading, refreshServers } = useLive();
@@ -103,7 +104,7 @@ function ServerCard({ server, onChange }: { server: PublicServer; onChange: () =
   }
 
   return (
-    <article className="card p-4">
+    <article className="card min-w-0 p-4">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[17px] font-semibold leading-tight">{server.name}</h2>
@@ -154,7 +155,10 @@ function ServerCard({ server, onChange }: { server: PublicServer; onChange: () =
       ) : null}
 
       {server.status === "ONLINE" ? (
-        <ServerStack serverId={server.id} onChange={onChange} />
+        <>
+          <ServerStack serverId={server.id} onChange={onChange} />
+          <ServerVsCode serverId={server.id} onChange={onChange} />
+        </>
       ) : null}
 
       <div className="mt-3 flex gap-2">
