@@ -1,0 +1,40 @@
+{
+  "name": "nolaptop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4400",
+    "build": "prisma generate && next build",
+    "start": "next start -p 4400",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
+    "typecheck": "tsc --noEmit",
+    "setup": "node scripts/setup.mjs"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@types/pg": "^8.23.1",
+    "clsx": "^2.1.1",
+    "next": "^16.3.6",
+    "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "ssh2": "^1.17.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ssh2": "^1.15.6",
+    "dotenv": "^18.0.4",
+    "postcss": "^8.5.28",
+    "prisma": "^7.10.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  },
+  "description": "Start a coding agent on any of your servers \u2014 from your phone.",
+  "license": "MIT"
+}

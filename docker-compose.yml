@@ -1,0 +1,33 @@
+# NoLaptop with Docker Compose.
+#
+#   cp .env.example .env && npm run setup   # generates the two secrets
+#   docker compose up -d
+#
+# The database lives in a named volume, so your servers and sessions survive
+# `docker compose down`. Port 4400 is published on localhost only — put it
+# behind a reverse proxy with TLS before exposing it, and see the README.
+
+services:
+  nolaptop:
+    build: .
+    image: nolaptop:latest
+    container_name: nolaptop
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4400:4400"
+    environment:
+      DATABASE_URL: "file:/app/data/nolaptop.db"
+      NL_ENCRYPTION_KEY: "${NL_ENCRYPTION_KEY:?run npm run setup first}"
+      NL_APP_PASSWORD: "${NL_APP_PASSWORD:?run npm run setup first}"
+      NL_MONITOR_INTERVAL_MS: "${NL_MONITOR_INTERVAL_MS:-15000}"
+    volumes:
+      - nolaptop-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4400/api/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  nolaptop-data:

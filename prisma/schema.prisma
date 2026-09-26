@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Server {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  host        String
+  port        Int     @default(22)
+  username    String
+  /// AES-256-GCM encrypted OpenSSH private key (never returned to the client).
+  privateKey  String
+  /// AES-256-GCM encrypted passphrase for the private key, if any.
+  passphrase  String?
+  /// Absolute directory on the remote host that all projects live under.
+  projectRoot String
+  description String?
+  active      Boolean @default(true)
+
+  /// Result of the last reachability probe: ONLINE | OFFLINE | CONNECTION_ERROR | UNKNOWN
+  status        String    @default("UNKNOWN")
+  statusMessage String?
+  lastCheckAt   DateTime?
+
+  /// Filename for the generated agent instructions. AGENTS.md is the
+  /// cross-tool standard and is read by Claude Code too; CLAUDE.md is offered
+  /// for people who prefer it. Never both — a CLAUDE.md shadows AGENTS.md.
+  agentsFileName String  @default("AGENTS.md")
+  /// Your own house rules, copied verbatim into every generated file.
+  agentsPreamble String?
+
+  /// How "Open in VS Code" is built for projects on this host.
+  /// NONE | TUNNEL | CODE_SERVER | DESKTOP_SSH | CUSTOM — see lib/editor.ts
+  editorMode        String  @default("NONE")
+  /// code-server base URL, e.g. https://code.example.com
+  editorBaseUrl     String?
+  /// Machine name registered by `code tunnel`.
+  editorTunnelName  String?
+  /// SSH alias as it appears in your own ~/.ssh/config, for the desktop link.
+  editorSshHost     String?
+  /// Template for CUSTOM: {path}, {pathEncoded}, {project}
+  editorUrlTemplate String?
+
+  /// SSH host key fingerprint, pinned on the first successful connection.
+  /// A later mismatch is refused rather than silently accepted.
+  hostKeyFingerprint String?
+
+  /// Facts discovered on the host during the probe.
+  claudeVersion String?
+  tmuxVersion   String?
+  claudeAuth    String? // JSON blob from `claude auth status --json`
+
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Session {
+  id       String @id @default(cuid())
+  serverId String
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  /// Project folder name, validated against a strict slug pattern.
+  projectName String
+  /// Absolute path, always resolved inside the server's projectRoot.
+  projectPath String
+  /// tmux session name — derived, unique and reproducible.
+  tmuxSession String
+
+  /// Lifecycle state, see lib/claude/state.ts
+  state       String  @default("STARTING")
+  stateDetail String?
+
+  /// Remote Control bridge id (e.g. "session_01ABC…") and derived URL.
+  bridgeSessionId String?
+  remoteUrl       String?
+
+  /// Claude's own conversation id (uuid) + the discovered OS pid.
+  claudeSessionId String?
+  claudePid       Int?
+
+  /// Port reserved for this project's dev server, unique per host.
+  devPort   Int?
+  /// Starter template this project was created from — see lib/templates.ts
+  template  String  @default("blank")
+  /// tmux session running the template's app, when it has one.
+  appTmux   String?
+  /// STOPPED | STARTING | RUNNING | FAILED
+  appState  String  @default("NONE")
+  appDetail String?
+
+  model     String?
+  gitBranch String?
+  gitCommit String?
+
+  lastHealthyAt  DateTime?
+  lastActivityAt DateTime?
+  stoppedAt      DateTime?
+
+  /// Latest usage snapshot, JSON — see lib/claude/usage.ts
+  usageJson String?
+
+  events      SessionEvent[]
+  allocations ResourceAllocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serverId, projectName])
+  @@index([state])
+}
+
+model SessionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// state-change | action | error | info
+  kind      String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+/// A shared backing service — one Postgres instance or one S3-compatible store —
+/// that several projects carve a namespace out of. It can live on a managed
+/// server, somewhere else entirely, or at a cloud provider; the app reaches it
+/// directly rather than through SSH.
+model Resource {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  /// POSTGRES | S3
+  kind        String
+  description String?
+  active      Boolean @default(true)
+  /// Preselected for new projects.
+  isDefault   Boolean @default(false)
+
+  // --- Postgres ---
+  host          String?
+  port          Int?
+  adminUser     String?
+  /// AES-256-GCM encrypted.
+  adminPassword String?
+  adminDatabase String? @default("postgres")
+  sslMode       String? @default("prefer")
+
+  // --- S3 ---
+  endpoint       String?
+  region         String?
+  accessKey      String?
+  /// AES-256-GCM encrypted.
+  secretKey      String?
+  /// PER_PROJECT_BUCKET | SHARED_BUCKET_PREFIX
+  layout         String? @default("PER_PROJECT_BUCKET")
+  /// The one bucket used in SHARED_BUCKET_PREFIX layout.
+  bucket         String?
+  forcePathStyle Boolean @default(true)
+
+  /// When set, the resource is reached through this server's SSH tunnel
+  /// instead of directly, so it can stay bound to that host's localhost.
+  serverId   String?
+  /// True when NoLaptop started this service itself (a container on serverId).
+  managed    Boolean @default(false)
+  /// The port the service listens on *on the server*, before tunnelling.
+  remotePort Int?
+
+  status        String    @default("UNKNOWN")
+  statusMessage String?
+  lastCheckAt   DateTime?
+
+  allocations ResourceAllocation[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+/// The slice of a Resource that belongs to one project.
+model ResourceAllocation {
+  id         String   @id @default(cuid())
+  sessionId  String
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  /// Database name, or bucket name / prefix.
+  namespace String
+  /// Role created for this project, where the provider supports it.
+  username  String?
+  /// AES-256-GCM encrypted password or secret.
+  secret    String?
+  /// Connection details that are not secret, as JSON.
+  metaJson  String?
+
+  /// READY | ERROR
+  state String  @default("READY")
+  error String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, resourceId])
+}
