@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { SessionDto } from "@/lib/serialize";
 import type { PublicServer } from "@/lib/servers";
 
@@ -29,9 +30,13 @@ const POLL_FALLBACK_MS = 20_000;
 /** Pages that exist precisely because there is no session yet. */
 const PUBLIC_PATHS = ["/login", "/setup"];
 
+function isPublicPath(pathname: string | null): boolean {
+  return PUBLIC_PATHS.includes(pathname ?? "");
+}
+
 function onPublicPage(): boolean {
   if (typeof window === "undefined") return false;
-  return PUBLIC_PATHS.includes(window.location.pathname);
+  return isPublicPath(window.location.pathname);
 }
 
 /**
@@ -50,6 +55,12 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
+
+  // Signing in is a client-side navigation: this provider stays mounted, so
+  // without watching the path it would never start loading after login and the
+  // dashboard would sit on its skeletons forever.
+  const pathname = usePathname();
+  const isPublic = isPublicPath(pathname);
 
   const loadSessions = useCallback(async () => {
     if (inFlight.current || onPublicPage()) return;
@@ -89,9 +100,13 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (isPublic) {
+      setLoading(false);
+      return;
+    }
     void loadSessions();
     void loadServers();
-  }, [loadSessions, loadServers]);
+  }, [isPublic, pathname, loadSessions, loadServers]);
 
   // --- live stream ---------------------------------------------------------
   useEffect(() => {
@@ -99,8 +114,10 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     let retry: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
 
+    if (isPublic) return;
+
     const connect = () => {
-      if (closed || onPublicPage()) return;
+      if (closed) return;
       source = new EventSource("/api/events");
 
       source.addEventListener("open", () => setConnected(true));
@@ -123,7 +140,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
       if (retry) clearTimeout(retry);
       source?.close();
     };
-  }, [loadSessions, loadServers]);
+  }, [isPublic, loadSessions, loadServers]);
 
   // --- fallback polling ----------------------------------------------------
   // Phones suspend timers and sockets when the screen locks. Re-sync whenever
