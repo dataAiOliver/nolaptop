@@ -1,0 +1,16 @@
+# Caddy in front of NoLaptop. Used by docker-compose.caddy.yml.
+#
+# Caddy obtains and renews the certificate itself; there is nothing to configure
+# beyond the hostname in .env.
+
+{
+	email {$NL_ACME_EMAIL}
+}
+
+{$NL_PUBLIC_HOSTNAME} {
+	reverse_proxy nolaptop:4400 {
+		# The dashboard's live updates are Server-Sent Events. Without this the
+		# stream is buffered and the UI only catches up on the next poll.
+		flush_interval -1
+	}
+}

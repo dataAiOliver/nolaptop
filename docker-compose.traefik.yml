@@ -1,0 +1,26 @@
+# Overlay for an existing Traefik that discovers containers through the Docker
+# socket. Used by `make deploy` when NL_PROXY=traefik.
+#
+# It stops publishing a host port — Traefik reaches the container over the
+# shared network instead, so nothing but 80/443 is open.
+
+services:
+  nolaptop:
+    ports: !override []
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "${NL_TRAEFIK_NETWORK:-proxy}"
+      traefik.http.routers.nolaptop.rule: "Host(`${NL_PUBLIC_HOSTNAME}`)"
+      traefik.http.routers.nolaptop.entrypoints: "${NL_TRAEFIK_ENTRYPOINT:-websecure}"
+      traefik.http.routers.nolaptop.tls.certresolver: "${NL_TRAEFIK_CERTRESOLVER:-letsencrypt}"
+      traefik.http.services.nolaptop.loadbalancer.server.port: "4400"
+      # Live updates are a long-lived SSE stream; do not let it be buffered or
+      # cut short, or the dashboard goes quiet until the next poll.
+      traefik.http.services.nolaptop.loadbalancer.responseforwarding.flushinterval: "100ms"
+
+networks:
+  proxy:
+    external: true
+    name: "${NL_TRAEFIK_NETWORK:-proxy}"

@@ -1,11 +1,11 @@
 # NoLaptop with Docker Compose.
 #
-#   cp .env.example .env && npm run setup   # generates the two secrets
+#   npm run setup        # generates the two secrets into .env
 #   docker compose up -d
 #
-# The database lives in a named volume, so your servers and sessions survive
-# `docker compose down`. Port 4400 is published on localhost only — put it
-# behind a reverse proxy with TLS before exposing it, and see the README.
+# The database is bind-mounted from ./data so you can see and back up the file.
+# Port 4400 is published on localhost only. To put it on a hostname with TLS,
+# see `make deploy` and the "Publishing it" section of the README.
 
 services:
   nolaptop:
@@ -13,21 +13,28 @@ services:
     image: nolaptop:latest
     container_name: nolaptop
     restart: unless-stopped
+    # ./data is a bind mount, so the container has to run as the user that owns
+    # it on the host — otherwise SQLite opens read-only and every write fails.
+    # `make docker` and `make deploy` set these from the current user.
+    user: "${NL_UID:-1000}:${NL_GID:-1000}"
     ports:
-      - "127.0.0.1:4400:4400"
+      - "127.0.0.1:${NL_BIND_PORT:-4400}:4400"
     environment:
       DATABASE_URL: "file:/app/data/nolaptop.db"
       NL_ENCRYPTION_KEY: "${NL_ENCRYPTION_KEY:?run npm run setup first}"
       NL_APP_PASSWORD: "${NL_APP_PASSWORD:?run npm run setup first}"
       NL_MONITOR_INTERVAL_MS: "${NL_MONITOR_INTERVAL_MS:-15000}"
+      NL_POSTGRES_IMAGE: "${NL_POSTGRES_IMAGE:-}"
+      NL_S3_IMAGE: "${NL_S3_IMAGE:-}"
     volumes:
-      - nolaptop-data:/app/data
+      - ./data:/app/data
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4400/api/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4400/api/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
-
-volumes:
-  nolaptop-data:
+      start_period: 25s

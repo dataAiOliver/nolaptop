@@ -387,6 +387,8 @@ function interruptState(interrupt: Interrupt): SessionState {
     case "LOGIN":
     case "REAUTH":
       return "AUTH_REQUIRED";
+    case "REMOTE_CONTROL_DROPPED":
+      return "REMOTE_DISCONNECTED";
     case "WORKSPACE_TRUST":
     case "REMOTE_CONTROL_APPROVAL":
     case "TRUSTED_DEVICE":

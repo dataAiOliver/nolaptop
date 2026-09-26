@@ -13,6 +13,7 @@ export type InterruptKind =
   | "WORKSPACE_TRUST"
   | "LOGIN"
   | "REMOTE_CONTROL_APPROVAL"
+  | "REMOTE_CONTROL_DROPPED"
   | "TRUSTED_DEVICE"
   | "REAUTH"
   | "GENERIC_CONFIRM"
@@ -149,10 +150,33 @@ export function detectInterrupt(paneRaw: string): Interrupt {
     };
   }
 
-  // --- Remote Control approval -------------------------------------------
+  // --- Remote Control dropped --------------------------------------------
+  // Claude says this in so many words when the bridge goes away. It is a
+  // disconnect, not a permission question, and the fix is to reconnect.
   if (
-    /remote control/i.test(flat) &&
-    /(approve|allow|enable|confirm|grant|permission)/i.test(flat) &&
+    /remote control disconnected/i.test(flat) ||
+    /\/rc failed/i.test(flat) ||
+    /remote control.{0,60}(no longer|lost connection|connection closed)/i.test(flat)
+  ) {
+    return {
+      kind: "REMOTE_CONTROL_DROPPED",
+      title: "Remote Control lost its connection.",
+      actionLabel: "Reconnect Remote Control",
+      url: null,
+      answerKeys: null,
+      evidence: evidenceFor(pane, /remote control|\/rc/i),
+    };
+  }
+
+  // --- Remote Control approval -------------------------------------------
+  // Deliberately narrow. The Claude status bar permanently reads
+  // "bypass permissions on", so matching the bare word "permission" next to
+  // "remote control" turned every healthy session into a false alarm.
+  if (
+    (/(approve|allow|grant|authorise|authorize)[^.]{0,40}remote control/i.test(flat) ||
+      /remote control[^.]{0,40}(needs? approval|requires? approval|not approved|awaiting approval)/i.test(
+        flat,
+      )) &&
     !/remote-control is active/i.test(flat)
   ) {
     return {

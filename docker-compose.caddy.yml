@@ -1,0 +1,39 @@
+# Overlay that brings its own Caddy, for a machine with nothing in front yet.
+# Used by `make deploy` when NL_PROXY=caddy.
+#
+# Caddy gets the certificate from Let's Encrypt on its own; ports 80 and 443
+# have to be free and reachable from the internet.
+
+services:
+  nolaptop:
+    ports: !override []
+    networks:
+      - nolaptop-edge
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nolaptop-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      NL_PUBLIC_HOSTNAME: "${NL_PUBLIC_HOSTNAME:?set NL_PUBLIC_HOSTNAME in .env}"
+      NL_ACME_EMAIL: "${NL_ACME_EMAIL:-}"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - nolaptop-edge
+    depends_on:
+      - nolaptop
+
+networks:
+  nolaptop-edge:
+    name: nolaptop-edge
+
+volumes:
+  caddy-data:
+  caddy-config:

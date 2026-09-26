@@ -35,8 +35,9 @@ start: ## Build and run in production mode
 	npm run build
 	npm start
 
-docker: ## Run with Docker Compose (nothing else needed on this machine)
-	docker compose up -d --build
+docker: ## Run with Docker Compose on localhost
+	@mkdir -p data
+	NL_UID=$$(id -u) NL_GID=$$(id -g) docker compose up -d --build
 	@echo "NoLaptop is on http://localhost:$(PORT)"
 	@echo "Password:  grep NL_APP_PASSWORD .env"
 
@@ -45,6 +46,16 @@ docker-stop: ## Stop the Docker Compose stack
 
 logs: ## Follow the Docker Compose logs
 	docker compose logs -f
+
+# ---------------------------------------------------------------- publish
+
+deploy: ## Publish on NL_PUBLIC_HOSTNAME with TLS — see README "Publishing it"
+	@bash scripts/deploy.sh
+
+deploy-stop: ## Take the published instance down
+	@docker compose -f docker-compose.yml -f docker-compose.traefik.yml down 2>/dev/null \
+		|| docker compose -f docker-compose.yml -f docker-compose.caddy.yml down 2>/dev/null \
+		|| docker compose down
 
 # ---------------------------------------------------------------- quality
 
@@ -69,4 +80,4 @@ reset: ## Delete the local database — servers, sessions and resources are forg
 	  if [ "$$ok" = "y" ]; then rm -f data/nolaptop.db && npx prisma db push && echo "Database reset."; \
 	  else echo "Cancelled."; fi
 
-.PHONY: help check install dev start docker docker-stop logs typecheck build demo demo-clean reset
+.PHONY: help check install dev start docker docker-stop logs deploy deploy-stop typecheck build demo demo-clean reset

@@ -8,7 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-RUN npm ci --ignore-scripts && npx prisma generate
+# --ignore-scripts keeps every package's postinstall from running, but
+# better-sqlite3 needs its native binding built — so that one is rebuilt
+# explicitly rather than trusting the whole dependency tree.
+RUN npm ci --ignore-scripts \
+    && npm rebuild better-sqlite3 \
+    && npx prisma generate
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
@@ -32,7 +37,11 @@ COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 COPY --from=build /app/scripts ./scripts
 
-RUN mkdir -p /app/data && chown -R nolaptop:nolaptop /app/data
+# The container may run as any uid (see docker-compose.yml), so the two
+# directories that are written at runtime are made writable for everyone.
+RUN mkdir -p /app/data /app/.next/cache \
+    && chown -R nolaptop:nolaptop /app/data /app/.next \
+    && chmod -R a+rwX /app/data /app/.next/cache
 USER nolaptop
 VOLUME ["/app/data"]
 EXPOSE 4400
