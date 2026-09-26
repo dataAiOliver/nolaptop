@@ -51,7 +51,7 @@ const nodeBasic: Template = {
   summary: "A running HTTP server on your reserved port. No dependencies.",
   needsServices: false,
   install: undefined,
-  start: "node server.mjs",
+  start: "node --env-file=.env server.mjs",
   files: (ctx) => [
     {
       path: "server.mjs",
@@ -84,7 +84,10 @@ server.listen(port, () => console.log(\`${ctx.projectName} listening on \${port}
           name: ctx.projectName,
           private: true,
           type: "module",
-          scripts: { start: "node server.mjs", dev: "node --watch server.mjs" },
+          scripts: {
+            start: "node --env-file=.env server.mjs",
+            dev: "node --env-file=.env --watch server.mjs",
+          },
         },
         null,
         2,
@@ -101,7 +104,7 @@ const nodeServices: Template = {
   summary: "Reads and writes its own PostgreSQL database and S3 bucket, out of the box.",
   needsServices: true,
   install: "npm install",
-  start: "node server.mjs",
+  start: "node --env-file=.env server.mjs",
   files: (ctx) => [
     {
       path: "server.mjs",
@@ -121,6 +124,14 @@ import {
  */
 
 const port = Number(process.env.PORT ?? ${PORT(ctx)});
+
+if (!process.env.DATABASE_URL || !process.env.S3_BUCKET) {
+  console.error(
+    "DATABASE_URL or S3_BUCKET is missing. This app is started with",
+    "\`node --env-file=.env server.mjs\` so it picks up the file NoLaptop wrote.",
+  );
+  process.exit(1);
+}
 
 const db = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -205,7 +216,10 @@ server.listen(port, () => console.log(\`${ctx.projectName} listening on \${port}
           name: ctx.projectName,
           private: true,
           type: "module",
-          scripts: { start: "node server.mjs", dev: "node --watch server.mjs" },
+          scripts: {
+            start: "node --env-file=.env server.mjs",
+            dev: "node --env-file=.env --watch server.mjs",
+          },
           dependencies: { pg: "^8.13.0", "@aws-sdk/client-s3": "^3.700.0" },
         },
         null,

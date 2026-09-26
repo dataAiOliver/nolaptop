@@ -26,6 +26,23 @@ const LiveContext = createContext<LiveValue | null>(null);
 
 const POLL_FALLBACK_MS = 20_000;
 
+/** Pages that exist precisely because there is no session yet. */
+const PUBLIC_PATHS = ["/login", "/setup"];
+
+function onPublicPage(): boolean {
+  if (typeof window === "undefined") return false;
+  return PUBLIC_PATHS.includes(window.location.pathname);
+}
+
+/**
+ * Send the browser to the sign-in page — unless it is already on one of the
+ * pages that does not need a session, which would otherwise reload forever.
+ */
+function redirectToLogin(): void {
+  if (onPublicPage()) return;
+  window.location.href = "/login";
+}
+
 export function LiveProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<SessionDto[]>([]);
   const [servers, setServers] = useState<PublicServer[]>([]);
@@ -35,12 +52,12 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const inFlight = useRef(false);
 
   const loadSessions = useCallback(async () => {
-    if (inFlight.current) return;
+    if (inFlight.current || onPublicPage()) return;
     inFlight.current = true;
     try {
       const res = await fetch("/api/sessions", { cache: "no-store" });
       if (res.status === 401) {
-        window.location.href = "/login";
+        redirectToLogin();
         return;
       }
       if (!res.ok) throw new Error(`Sessions could not be loaded (${res.status}).`);
@@ -56,10 +73,11 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadServers = useCallback(async () => {
+    if (onPublicPage()) return;
     try {
       const res = await fetch("/api/servers", { cache: "no-store" });
       if (res.status === 401) {
-        window.location.href = "/login";
+        redirectToLogin();
         return;
       }
       if (!res.ok) return;
@@ -82,7 +100,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     let closed = false;
 
     const connect = () => {
-      if (closed) return;
+      if (closed || onPublicPage()) return;
       source = new EventSource("/api/events");
 
       source.addEventListener("open", () => setConnected(true));

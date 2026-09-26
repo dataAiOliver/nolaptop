@@ -35,6 +35,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"
   },
-  "description": "Start a coding agent on any of your servers \u2014 from your phone.",
+  "description": "Start a coding agent on any of your servers — from your phone.",
   "license": "MIT"
 }
