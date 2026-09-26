@@ -6,6 +6,7 @@ import type { SessionDto } from "@/lib/serialize";
 import { STATE_UI, type SessionState } from "@/lib/claude/state";
 import { formatDuration, formatRelative } from "@/lib/format";
 import { useLive } from "./LiveProvider";
+import { EditorButton } from "./EditorButton";
 
 type Props = { session: SessionDto };
 
@@ -174,17 +175,7 @@ export function SessionCard({ session }: Props) {
             </p>
           ) : null}
 
-          {session.editor ? (
-            <a
-              className="btn btn-secondary w-full"
-              href={session.editor.url}
-              target={session.editor.browser ? "_blank" : undefined}
-              rel={session.editor.browser ? "noopener noreferrer" : undefined}
-            >
-              <VsCodeIcon />
-              {session.editor.label}
-            </a>
-          ) : null}
+          <EditorButton editor={session.editor} />
         </div>
 
         {/* Secondary actions: a compact row, still 44px tall. */}

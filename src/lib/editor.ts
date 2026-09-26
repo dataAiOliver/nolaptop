@@ -59,13 +59,26 @@ export function isEditorMode(value: string): value is EditorMode {
   return (EDITOR_MODES as readonly string[]).includes(value);
 }
 
+/**
+ * The card always offers VS Code. When the browser route is not set up yet the
+ * button is still there — it explains what is missing and points at the switch,
+ * which is more useful than a button that quietly does not exist.
+ */
 export type EditorLink = {
-  url: string;
-  /** Button label, e.g. "Open in VS Code". */
+  /** "ready" — there is a URL. "setup" — it has to be switched on first. */
+  state: "ready" | "setup";
   label: string;
-  /** Whether the link opens a browser tab rather than a desktop app. */
+  url: string | null;
+  /** True when the URL opens a browser tab rather than the desktop app. */
   browser: boolean;
-} | null;
+  /** For "setup": what is missing, in one sentence. */
+  reason: string | null;
+  /** For "setup": where to switch it on. */
+  setupHref: string | null;
+  /** A desktop fallback, offered alongside the hint when one is possible. */
+  desktopUrl: string | null;
+  serverName: string;
+};
 
 /**
  * Encode an absolute POSIX path for use as URL *path segments*.
@@ -81,62 +94,94 @@ function pathSegments(absolutePath: string): string {
     .join("/");
 }
 
+function desktopSshUrl(
+  server: Pick<Server, "editorSshHost" | "host">,
+  projectPath: string,
+): string | null {
+  // The alias as it appears in *your* ~/.ssh/config, which need not match the
+  // address this app connects with.
+  const sshHost = (server.editorSshHost?.trim() || server.host).trim();
+  if (!sshHost) return null;
+  return `vscode://vscode-remote/ssh-remote+${encodeURIComponent(sshHost)}${projectPath}`;
+}
+
 export function editorLinkFor(
   server: Pick<
     Server,
-    "editorMode" | "editorBaseUrl" | "editorTunnelName" | "editorSshHost" | "editorUrlTemplate" | "host"
+    | "id"
+    | "name"
+    | "editorMode"
+    | "editorBaseUrl"
+    | "editorTunnelName"
+    | "editorSshHost"
+    | "editorUrlTemplate"
+    | "host"
   >,
   project: { projectPath: string; projectName: string },
 ): EditorLink {
   const mode: EditorMode = isEditorMode(server.editorMode) ? server.editorMode : "NONE";
-  if (mode === "NONE") return null;
+  const desktopUrl = desktopSshUrl(server, project.projectPath);
+
+  const setup = (reason: string): EditorLink => ({
+    state: "setup",
+    label: "Open in VS Code",
+    url: null,
+    browser: true,
+    reason,
+    setupHref: `/servers?vscode=${encodeURIComponent(server.id)}`,
+    desktopUrl,
+    serverName: server.name,
+  });
+
+  const ready = (url: string, browser: boolean): EditorLink => ({
+    state: "ready",
+    label: "Open in VS Code",
+    url,
+    browser,
+    reason: null,
+    setupHref: null,
+    desktopUrl,
+    serverName: server.name,
+  });
 
   switch (mode) {
     case "TUNNEL": {
       const name = server.editorTunnelName?.trim();
-      if (!name) return null;
-      return {
-        url: `https://vscode.dev/tunnel/${encodeURIComponent(name)}/${pathSegments(project.projectPath)}`,
-        label: "Open in VS Code",
-        browser: true,
-      };
+      if (!name) return setup(`The VS Code tunnel on ${server.name} has not been started yet.`);
+      return ready(
+        `https://vscode.dev/tunnel/${encodeURIComponent(name)}/${pathSegments(project.projectPath)}`,
+        true,
+      );
     }
 
     case "CODE_SERVER": {
       const base = server.editorBaseUrl?.trim().replace(/\/+$/, "");
-      if (!base) return null;
+      if (!base) return setup(`code-server on ${server.name} has no address configured.`);
       // code-server takes ?folder= (and ?workspace=) to choose what to open.
-      return {
-        url: `${base}/?folder=${encodeURIComponent(project.projectPath)}`,
-        label: "Open in VS Code",
-        browser: true,
-      };
-    }
-
-    case "DESKTOP_SSH": {
-      // The alias as it appears in *your* ~/.ssh/config, which need not match
-      // the address this app connects to.
-      const sshHost = (server.editorSshHost?.trim() || server.host).trim();
-      if (!sshHost) return null;
-      return {
-        url: `vscode://vscode-remote/ssh-remote+${encodeURIComponent(sshHost)}${project.projectPath}`,
-        label: "Open in VS Code",
-        browser: false,
-      };
+      return ready(`${base}/?folder=${encodeURIComponent(project.projectPath)}`, true);
     }
 
     case "CUSTOM": {
       const template = server.editorUrlTemplate?.trim();
-      if (!template) return null;
-      const url = template
-        .replaceAll("{pathEncoded}", encodeURIComponent(project.projectPath))
-        .replaceAll("{path}", pathSegments(project.projectPath))
-        .replaceAll("{project}", encodeURIComponent(project.projectName));
-      return { url, label: "Open in editor", browser: true };
+      if (!template) return setup(`${server.name} has no editor URL template.`);
+      return ready(
+        template
+          .replaceAll("{pathEncoded}", encodeURIComponent(project.projectPath))
+          .replaceAll("{path}", pathSegments(project.projectPath))
+          .replaceAll("{project}", encodeURIComponent(project.projectName)),
+        true,
+      );
     }
 
+    case "DESKTOP_SSH":
+      // Configured on purpose, so honour it — but say that the browser route
+      // exists, because a vscode:// link cannot open in a browser by design.
+      return desktopUrl
+        ? { ...ready(desktopUrl, false), state: "ready" }
+        : setup(`${server.name} has no SSH host for the desktop link.`);
+
     default:
-      return null;
+      return setup(`VS Code in the browser is not set up for ${server.name} yet.`);
   }
 }
 

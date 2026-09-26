@@ -15,7 +15,8 @@ import {
   formatRelative,
   formatTokens,
 } from "@/lib/format";
-import { callAction, Spinner, VsCodeIcon, type ActionName } from "@/components/SessionCard";
+import { callAction, Spinner, type ActionName } from "@/components/SessionCard";
+import { EditorButton } from "@/components/EditorButton";
 import { useLive } from "@/components/LiveProvider";
 import { SessionResources } from "@/components/SessionResources";
 import { SessionLinks } from "@/components/SessionLinks";
@@ -220,17 +221,7 @@ export default function SessionDetailPage() {
           </p>
         )}
 
-        {session.editor ? (
-          <a
-            className="btn btn-secondary btn-lg w-full"
-            href={session.editor.url}
-            target={session.editor.browser ? "_blank" : undefined}
-            rel={session.editor.browser ? "noopener noreferrer" : undefined}
-          >
-            <VsCodeIcon />
-            {session.editor.label}
-          </a>
-        ) : null}
+        <EditorButton editor={session.editor} size="lg" />
       </section>
 
       <section className="grid grid-cols-2 gap-2">
