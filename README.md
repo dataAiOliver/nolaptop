@@ -422,8 +422,9 @@ mine. NoLaptop is not affiliated with or endorsed by Anthropic.
 
 ## Read more
 
-[I got too lazy to open my laptop, so I built a button](docs/article.md) — the longer
-story, with what broke along the way.
+- [I got too lazy to open my laptop, so I built a button](docs/article.md) — the longer
+  story, with what broke along the way.
+- [LinkedIn-Post (Deutsch)](docs/linkedin-post.md)
 
 ## License
 

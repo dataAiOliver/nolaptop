@@ -10,6 +10,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright-core";
 
@@ -19,9 +20,36 @@ if (!input || !output) {
   process.exit(1);
 }
 
-const EXECUTABLE =
-  process.env.NL_CHROMIUM ??
-  "/home/oliver/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome";
+/**
+ * Find a Chromium to render with.
+ *
+ * Hard-coding a Playwright cache path breaks the moment the browser updates —
+ * and it would never have worked on anyone else's machine.
+ */
+function findChromium() {
+  if (process.env.NL_CHROMIUM) return process.env.NL_CHROMIUM;
+
+  const cache = path.join(os.homedir(), ".cache", "ms-playwright");
+  if (fs.existsSync(cache)) {
+    const builds = fs
+      .readdirSync(cache)
+      .filter((d) => d.startsWith("chromium-"))
+      .sort((a, b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
+    for (const build of builds) {
+      for (const rel of ["chrome-linux/chrome", "chrome-linux64/chrome", "chrome-mac/Chromium.app/Contents/MacOS/Chromium"]) {
+        const candidate = path.join(cache, build, rel);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+    }
+  }
+
+  for (const system of ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"]) {
+    if (fs.existsSync(system)) return system;
+  }
+  throw new Error("No Chromium found. Set NL_CHROMIUM to one, or run: npx playwright install chromium");
+}
+
+const EXECUTABLE = findChromium();
 
 const text = fs.readFileSync(input, "utf8").replace(/\s+$/, "");
 
