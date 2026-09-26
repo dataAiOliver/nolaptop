@@ -46,8 +46,24 @@ export async function allocateDevPort(server: Server, sessionId: string): Promis
 
   for (let port = RANGE_START; port <= RANGE_END; port += 1) {
     if (reserved.has(port) || listening.has(port)) continue;
-    await prisma.session.update({ where: { id: sessionId }, data: { devPort: port } });
-    return port;
+    try {
+      await prisma.session.update({ where: { id: sessionId }, data: { devPort: port } });
+      return port;
+    } catch (err) {
+      // Two projects launched in the same second both read the free list before
+      // either had written, and both picked this port. The unique index on
+      // (serverId, devPort) turns that race into a failed write, so the loser
+      // simply takes the next one.
+      if (isUniqueViolation(err)) continue;
+      throw err;
+    }
   }
   return null;
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const code = (err as { code?: string }).code;
+  const message = (err as { message?: string }).message ?? "";
+  return code === "P2002" || /unique constraint/i.test(message);
 }

@@ -29,6 +29,12 @@ that started it.
 
 Which means questionable side projects can now begin on the bus.
 
+<p align="center">
+  <img src="docs/dashboard.png" width="30%" alt="The dashboard on a phone: three projects, each with one big Open Claude button">
+  <img src="docs/new-project.png" width="30%" alt="New project: pick a server, type a name, tick the services, tap start">
+  <img src="docs/session-local-access.png" width="30%" alt="A copy-paste ssh command that makes the project's ports local">
+</p>
+
 ---
 
 ## What it actually does
@@ -47,6 +53,12 @@ Type a name, tap Launch, and on the server you get:
 
 Plus, in the dashboard: a live status for every session, one button to open it in
 Claude, one to open it in VS Code, and honest answers when something needs you.
+
+And in the project itself, written for you:
+
+<p align="center">
+  <img src="docs/terminal-agents.png" width="80%" alt="The generated AGENTS.md: host, project directory, reserved port, its own database and bucket">
+</p>
 
 ## Not just another session dashboard
 
@@ -91,7 +103,7 @@ You need Node 20+ on the machine running NoLaptop, and on every server you manag
 in there (`claude auth login`) — NoLaptop never handles Anthropic credentials itself.
 
 ```bash
-git clone https://github.com/YOUR-NAME/nolaptop.git
+git clone https://github.com/dataAiOliver/nolaptop.git
 cd nolaptop
 make check      # tells you what is missing, changes nothing
 make install    # dependencies, generated secrets, database
@@ -100,14 +112,23 @@ make dev        # http://localhost:4400
 
 `make install` prints your generated password once. It is also in `.env`.
 
+<p align="center">
+  <img src="docs/terminal-install.png" width="80%" alt="make install: prerequisite check, generated password, database created">
+</p>
+
 <details>
 <summary>With Docker instead</summary>
 
 ```bash
 cp .env.example .env
 npm run setup          # generates the two secrets into .env
-docker compose up -d
+npx prisma db push     # creates ./data/nolaptop.db
+NL_UID=$(id -u) NL_GID=$(id -g) docker compose up -d
 ```
+
+The schema is applied from here, not from inside the container: the runtime image
+carries production dependencies only. `make docker` and `make deploy` do all of this
+for you.
 
 </details>
 
@@ -315,6 +336,14 @@ This app holds SSH keys to your servers, so the boring parts matter:
   conversation, the database and the bucket alone. Dropping data takes an explicit
   request and two confirmations.
 
+### A known advisory, and why it stands
+
+`npm audit` reports high-severity findings in `mysql2`. It arrives as a transitive
+dependency of `@prisma/client` → `prisma`, and this app never loads it: it talks to
+SQLite through `better-sqlite3`, and `mysql2` appears nowhere in the build output.
+Resolving it means Prisma dropping that dependency upstream. It is listed here rather
+than left for you to discover.
+
 ## Project layout
 
 ```
@@ -390,6 +419,11 @@ and `src/lib/shell.ts` — everything that reaches a server goes through those.
 
 It orchestrates [Claude Code](https://claude.com/claude-code), which is Anthropic's, not
 mine. NoLaptop is not affiliated with or endorsed by Anthropic.
+
+## Read more
+
+[I got too lazy to open my laptop, so I built a button](docs/article.md) — the longer
+story, with what broke along the way.
 
 ## License
 

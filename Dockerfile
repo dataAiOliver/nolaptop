@@ -1,5 +1,9 @@
 # NoLaptop — a small Next.js app with a SQLite database and outbound SSH.
-# Nothing is compiled natively except better-sqlite3, so one build stage is enough.
+#
+# The runtime image carries production dependencies only. Build tooling — the
+# Prisma CLI above all — never ships: it drags in database drivers this app
+# does not use (mysql2 among them), and an image should not contain code it
+# cannot run.
 
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
@@ -15,6 +19,17 @@ RUN npm ci --ignore-scripts \
     && npm rebuild better-sqlite3 \
     && npx prisma generate
 
+# Production dependencies, plus the generated Prisma client copied across from
+# the full tree — `prisma generate` needs the CLI, which does not live here.
+FROM node:22-bookworm-slim AS proddeps
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev --ignore-scripts && npm rebuild better-sqlite3
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -29,13 +44,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssh-client 
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --uid 10001 nolaptop
 
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=proddeps /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/prisma.config.ts ./prisma.config.ts
-COPY --from=build /app/scripts ./scripts
 
 # The container may run as any uid (see docker-compose.yml), so the two
 # directories that are written at runtime are made writable for everyone.
@@ -46,6 +58,6 @@ USER nolaptop
 VOLUME ["/app/data"]
 EXPOSE 4400
 
-# The schema is pushed on every start: it is idempotent and keeps an upgraded
-# image working against an existing database without a manual step.
-CMD ["sh", "-c", "npx prisma db push --skip-generate 2>/dev/null || npx prisma db push; exec npx next start -p 4400"]
+# The schema is applied from the host before the container starts — see
+# scripts/deploy.sh and the `docker` target in the Makefile.
+CMD ["node_modules/.bin/next", "start", "-p", "4400"]

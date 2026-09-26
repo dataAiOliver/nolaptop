@@ -92,7 +92,12 @@ fi
 
 # ------------------------------------------------------------------- build
 
+# The runtime image has no Prisma CLI, so the schema is applied from here —
+# ./data is the same bind mount the container will use.
 printf '\n'
+npx prisma db push >/dev/null 2>&1 && green "Database schema up to date" \
+  || yellow "Could not apply the schema. Run: npx prisma db push"
+
 docker compose "${FILES[@]}" build || die "The image did not build."
 green "Image built"
 

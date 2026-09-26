@@ -115,6 +115,10 @@ model Session {
   updatedAt DateTime @updatedAt
 
   @@unique([serverId, projectName])
+  /// Two projects started at the same moment used to race for the same port:
+  /// both read the free list before either had written. The database now
+  /// decides, and the loser retries with the next port.
+  @@unique([serverId, devPort])
   @@index([state])
 }
 

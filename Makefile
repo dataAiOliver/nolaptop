@@ -37,6 +37,7 @@ start: ## Build and run in production mode
 
 docker: ## Run with Docker Compose on localhost
 	@mkdir -p data
+	npx prisma db push
 	NL_UID=$$(id -u) NL_GID=$$(id -g) docker compose up -d --build
 	@echo "NoLaptop is on http://localhost:$(PORT)"
 	@echo "Password:  grep NL_APP_PASSWORD .env"

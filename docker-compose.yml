@@ -1,7 +1,10 @@
 # NoLaptop with Docker Compose.
 #
 #   npm run setup        # generates the two secrets into .env
-#   docker compose up -d
+#   npx prisma db push   # creates ./data/nolaptop.db — the image has no CLI
+#   NL_UID=$(id -u) NL_GID=$(id -g) docker compose up -d
+#
+# Or simply: make docker
 #
 # The database is bind-mounted from ./data so you can see and back up the file.
 # Port 4400 is published on localhost only. To put it on a hostname with TLS,

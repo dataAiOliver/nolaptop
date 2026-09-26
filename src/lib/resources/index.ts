@@ -288,7 +288,7 @@ export function envFor(allocation: ResourceAllocation & { resource: Resource }):
 }
 
 const ENV_HEADER = [
-  "# Written by Claude Control.",
+  "# Written by NoLaptop.",
   "# These credentials belong to this project's slice of a shared service.",
   "# Regenerated whenever the project's resources change — local edits below",
   "# the marker are preserved.",
